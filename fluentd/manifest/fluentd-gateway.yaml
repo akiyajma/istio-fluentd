@@ -1,0 +1,33 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: fluentd-gateway
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+  - port:
+      number: 31400
+      name: http
+      protocol: TCP
+    hosts:
+    - "*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: fluentds
+spec:
+  hosts:
+    - "*"
+  gateways:
+  - fluentd-gateway
+  tcp:
+  - match:
+    - port: 31400
+    route:
+    - destination:
+        host: fluentd-svc.default.svc.cluster.local
+        port:
+          number: 5170
+

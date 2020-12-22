@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fluentd-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fluentd
+  template:
+    metadata:
+      labels:
+        app: fluentd
+    spec:
+      containers:
+        - name: fluentd
+          image: akiyamko423/fluentd:1.0
+          resources:
+            requests:
+              cpu: 100m
+              memory: 50Mi
+            limits:
+              cpu: 150m
+              memory: 75Mi
+          env: 
+            - name: FLUENT_TCP_PORT
+              value: "5170"
+          volumeMounts:
+            - name: config-path
+              mountPath: /fluentd/etc
+      volumes:
+        - name: config-source
+          configMap:
+            name: fluent-conf-configmap
+        - name: config-path
+          emptyDir: {}
+      initContainers:
+        - name: config-fluentd
+          image: busybox
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh","-c"]
+          args:
+          - cp /fluentd/etc2/fluent.conf /fluentd/etc/fluent.conf;
+          volumeMounts:
+            - name: config-path
+              mountPath: /fluentd/etc
+            - name: config-source
+              mountPath: /fluentd/etc2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fluentd-svc
+  labels:
+    app: fluentd
+spec:
+  ports:
+  - port: 5170
+  selector:
+    app: fluentd
+---
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata: 
+  name: fluetnd
+spec:
+  scaleTargetRef:
+    kind: Deployment
+    name: fluentd-app
+    apiVersion: apps/v1
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+          name: cpu
+          targetAverageUtilization: 20
